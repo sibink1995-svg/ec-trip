@@ -14,6 +14,10 @@ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:en
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 "Noto Sans Malayalam",system-ui,sans-serif}
 main{max-width:640px;margin:0 auto;padding:16px 16px 96px}
+.tripbar{display:flex;gap:8px;margin-bottom:12px}
+.tripbar select{flex:1;min-width:0;background:rgba(255,255,255,.2);color:inherit;border:0;border-radius:10px;padding:8px 10px}
+.tripbar select option{color:#12303a}
+.tripbar button{background:rgba(255,255,255,.28);color:inherit;border:0;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer;white-space:nowrap}
 input,select,button,textarea{font:inherit;color:inherit}
 .hero{background:var(--acc);color:var(--accink);border-radius:22px;padding:18px 20px;margin-bottom:14px}
 .hero input{background:transparent;border:0;border-bottom:1px dashed currentColor;color:inherit;font-weight:800;font-size:20px;width:100%;padding:2px 0}
@@ -47,6 +51,7 @@ nav button.on{color:var(--acc);font-weight:800;background:var(--chip)}
 <body>
 <main>
  <div class="hero">
+  <div class="tripbar"><select id="tsel" aria-label="ട്രിപ്പ് തിരഞ്ഞെടുക്കുക"></select><button id="newT">+ പുതിയ ട്രിപ്പ്</button></div>
   <input id="trip" aria-label="Trip name" placeholder="ട്രിപ്പിന്റെ പേര്">
   <div class="sub" style="margin-top:6px">കോമൺ അക്കൗണ്ടിൽ ബാക്കി</div>
   <div class="big" id="bal"></div>
@@ -56,13 +61,17 @@ nav button.on{color:var(--acc);font-weight:800;background:var(--chip)}
 </main>
 <nav id="nav"></nav>
 <script>
-const KEY='trip-kanakku-v1';
-let S={trip:'',members:[],income:[],exp:[]},tab='members',editing=null;
-try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const KEY='trip-kanakku-v1',KEY2='trip-kanakku-v2';
+let S,ALL,tab='members',editing=null;
+const save=()=>{try{localStorage.setItem(KEY2,JSON.stringify(ALL))}catch(e){}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
+const blank=()=>({id:uid(),trip:'',members:[],income:[],exp:[]});
+try{ALL=JSON.parse(localStorage.getItem(KEY2))}catch(e){}
+if(!ALL||!Array.isArray(ALL.trips)||!ALL.trips.length){let o=null;try{o=JSON.parse(localStorage.getItem(KEY))}catch(e){}ALL={trips:[Object.assign(blank(),o||{})],cur:null};ALL.cur=ALL.trips[0].id}
+const pick=id=>{S=ALL.trips.find(t=>t.id===id)||ALL.trips[0];ALL.cur=S.id};pick(ALL.cur);
+const tname=t=>t.trip||'പേരില്ലാത്ത ട്രിപ്പ്';
 const today=()=>new Date().toISOString().slice(0,10);
 const money=n=>'₹'+(Math.round(n*100)/100).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
 const name=id=>id==='fund'?'കോമൺ അക്കൗണ്ട്':(S.members.find(m=>m.id===id)||{name:'?'}).name;
@@ -96,6 +105,7 @@ function transfers(k){
 function head(){
  const k=calc();
  $('#trip').value=S.trip;
+ $('#tsel').innerHTML=ALL.trips.map(t=>`<option value="${t.id}" ${t.id===S.id?'selected':''}>${esc(tname(t))}</option>`).join('');
  $('#bal').textContent=money(k.bal);
  $('#sIn').textContent=money(k.tin);$('#sEx').textContent=money(k.tex);$('#sSh').textContent=money(k.share);
 }
@@ -116,7 +126,7 @@ function membersV(){
  return `<div class="card"><h2>ട്രിപ്പിൽ ഉള്ളവർ</h2>
  <div class="row"><input class="f" id="mName" placeholder="പേര്"><button class="btn" id="addM" style="flex:0 0 90px;margin:0">ചേർക്കുക</button></div>
  <div class="chips" style="margin-top:12px">${S.members.map(m=>`<span class="chip">${esc(m.name)}<button class="x" data-delm="${m.id}" aria-label="Remove ${esc(m.name)}">×</button></span>`).join('')||'<span class="empty">ആരെയും ചേർത്തിട്ടില്ല</span>'}</div></div>
- <button class="btn ghost" id="reset">പുതിയ ട്രിപ്പ് തുടങ്ങുക (എല്ലാം മായ്ക്കും)</button>`;
+ <button class="btn ghost" id="reset">ഈ ട്രിപ്പ് മാത്രം ഡിലീറ്റ് ചെയ്യുക</button>`;
 }
 function incomeV(){
  return `<div class="card"><h2>കോമൺ അക്കൗണ്ടിലേക്ക് കിട്ടിയ പണം</h2>
@@ -169,10 +179,12 @@ document.addEventListener('click',ev=>{
  if(d.edit){editing=d.edit;view();scrollTo(0,0);return}
  if(d.dele){S.exp=S.exp.filter(x=>x.id!==d.dele);save();view();return}
  if(b.id==='copy'){const t=summaryText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('കോപ്പി ചെയ്തു'),()=>{prompt('കോപ്പി ചെയ്യുക',t)});return}
+ if(b.id==='newT'){const t=blank();ALL.trips.push(t);pick(t.id);tab='members';editing=null;save();view();$('#trip').focus();return}
  if(b.id==='pdf'){exportPdf();return}
- if(b.id==='reset'){if(confirm('എല്ലാ വിവരങ്ങളും മായ്ക്കട്ടെ?')){S={trip:'',members:[],income:[],exp:[]};save();view()}return}
+ if(b.id==='reset'){if(confirm('ഈ ട്രിപ്പ് മാത്രം ഡിലീറ്റ് ചെയ്യട്ടേ? തിരിച്ചെടുക്കാൻ പറ്റില്ല.')){ALL.trips=ALL.trips.filter(t=>t!==S);if(!ALL.trips.length)ALL.trips.push(blank());pick(ALL.trips[0].id);tab='members';editing=null;save();view()}return}
 });
-$('#trip').addEventListener('input',e=>{S.trip=e.target.value;save()});
+$('#trip').addEventListener('input',e=>{S.trip=e.target.value;save();const o=$('#tsel').selectedOptions[0];if(o)o.textContent=tname(S)});
+$('#tsel').addEventListener('change',e=>{pick(e.target.value);editing=null;save();view()});
 let DL=null;
 if(window.claude&&claude.use)claude.use('downloads').then(d=>{DL=d}).catch(()=>{});
 async function nativeSave(blob){
