@@ -15,6 +15,16 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 "Noto Sans Malayalam",system-ui,sans-serif}
 main{max-width:640px;margin:0 auto;padding:16px 16px 96px}
 .tripbar{display:flex;gap:8px;margin-bottom:12px}
+#menuWrap{position:relative;flex:0 0 auto}
+#menuWrap>#menuB{padding:8px 12px;font-size:18px;line-height:1.2}
+.menu{position:absolute;left:0;top:calc(100% + 6px);z-index:20;min-width:230px;max-width:calc(100vw - 32px);background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:6px;box-shadow:0 8px 24px rgba(0,0,0,.25)}
+.tripbar .menu button{background:none;color:var(--ink);border:0;border-radius:10px;padding:10px 12px;text-align:left;cursor:pointer;font-weight:600}
+.tripbar .menu>button{display:block;width:100%}
+.tripbar .menu .mb{color:var(--mute);font-size:13px}
+.menu .mt{display:flex;align-items:center;gap:4px}
+.menu .mt .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu .mt .nm.cur{color:var(--acc);font-weight:800}
+.tripbar .menu .mt .del{flex:0 0 auto;padding:8px 10px}
 .tripbar select{flex:1;min-width:0;background:rgba(255,255,255,.2);color:inherit;border:0;border-radius:10px;padding:8px 10px}
 .tripbar select option{color:#12303a}
 .tripbar button{background:rgba(255,255,255,.28);color:inherit;border:0;border-radius:10px;padding:8px 12px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -51,7 +61,7 @@ nav button.on{color:var(--acc);font-weight:800;background:var(--chip)}
 <body>
 <main>
  <div class="hero">
-  <div class="tripbar"><select id="tsel" aria-label="ട്രിപ്പ് തിരഞ്ഞെടുക്കുക"></select><button id="newT">+ പുതിയ ട്രിപ്പ്</button></div>
+  <div class="tripbar"><span id="menuWrap"></span><select id="tsel" aria-label="ട്രിപ്പ് തിരഞ്ഞെടുക്കുക"></select><button id="newT">+ പുതിയ ട്രിപ്പ്</button></div>
   <input id="trip" aria-label="Trip name" placeholder="ട്രിപ്പിന്റെ പേര്">
   <div class="sub" style="margin-top:6px">കോമൺ അക്കൗണ്ടിൽ ബാക്കി</div>
   <div class="big" id="bal"></div>
@@ -62,7 +72,7 @@ nav button.on{color:var(--acc);font-weight:800;background:var(--chip)}
 <nav id="nav"></nav>
 <script>
 const KEY='trip-kanakku-v1',KEY2='trip-kanakku-v2';
-let S,ALL,tab='members',editing=null;
+let S,ALL,tab='members',editing=null,menuOpen=false,menuTrips=false;
 const save=()=>{try{localStorage.setItem(KEY2,JSON.stringify(ALL))}catch(e){}};
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -109,12 +119,23 @@ function head(){
  $('#bal').textContent=money(k.bal);
  $('#sIn').textContent=money(k.tin);$('#sEx').textContent=money(k.tex);$('#sSh').textContent=money(k.share);
 }
+function drawMenu(){
+ const w=$('#menuWrap');if(!w)return;
+ let h='<button id="menuB" aria-label="Menu" aria-expanded="'+menuOpen+'">☰</button>';
+ if(menuOpen){
+  h+='<div class="menu">';
+  if(!menuTrips)h+='<button id="menuTrips">ട്രിപ്പുകൾ</button>';
+  else h+='<button id="menuBack" class="mb">← ട്രിപ്പുകൾ</button>'+ALL.trips.map(t=>`<div class="mt"><button class="nm${t.id===S.id?' cur':''}" data-pickt="${t.id}">${esc(tname(t))}</button><button class="del" data-delt="${t.id}" aria-label="ഡിലീറ്റ് ചെയ്യുക">🗑</button></div>`).join('');
+  h+='</div>';
+ }
+ w.innerHTML=h;
+}
 function nav(){
  const T=[['members','കൂട്ടുകാർ'],['income','ഇൻകം'],['exp','ചെലവ്'],['settle','സെറ്റിൽ']];
  $('#nav').innerHTML=T.map(([k,l])=>`<button class="${tab===k?'on':''}" data-t="${k}">${l}</button>`).join('');
 }
 function view(){
- head();nav();
+ head();nav();drawMenu();
  const v=$('#view');
  if(tab==='members')v.innerHTML=membersV();
  else if(S.members.length===0){v.innerHTML=`<div class="card empty">ആദ്യം "കൂട്ടുകാർ" ടാബിൽ ട്രിപ്പിൽ ഉള്ളവരുടെ പേര് ചേർക്കുക.</div>`;}
@@ -125,8 +146,7 @@ function view(){
 function membersV(){
  return `<div class="card"><h2>ട്രിപ്പിൽ ഉള്ളവർ</h2>
  <div class="row"><input class="f" id="mName" placeholder="പേര്"><button class="btn" id="addM" style="flex:0 0 90px;margin:0">ചേർക്കുക</button></div>
- <div class="chips" style="margin-top:12px">${S.members.map(m=>`<span class="chip">${esc(m.name)}<button class="x" data-delm="${m.id}" aria-label="Remove ${esc(m.name)}">×</button></span>`).join('')||'<span class="empty">ആരെയും ചേർത്തിട്ടില്ല</span>'}</div></div>
- <button class="btn ghost" id="reset">ഈ ട്രിപ്പ് മാത്രം ഡിലീറ്റ് ചെയ്യുക</button>`;
+ <div class="chips" style="margin-top:12px">${S.members.map(m=>`<span class="chip">${esc(m.name)}<button class="x" data-delm="${m.id}" aria-label="Remove ${esc(m.name)}">×</button></span>`).join('')||'<span class="empty">ആരെയും ചേർത്തിട്ടില്ല</span>'}</div></div>`;
 }
 function incomeV(){
  return `<div class="card"><h2>കോമൺ അക്കൗണ്ടിലേക്ക് കിട്ടിയ പണം</h2>
@@ -164,6 +184,7 @@ function summaryText(){
 function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)}
 
 document.addEventListener('click',ev=>{
+ if(menuOpen&&!ev.target.closest('#menuWrap')){menuOpen=false;menuTrips=false;drawMenu()}
  const b=ev.target.closest('button');if(!b)return;
  const d=b.dataset;
  if(d.t){tab=d.t;editing=null;view();return}
@@ -181,7 +202,11 @@ document.addEventListener('click',ev=>{
  if(b.id==='copy'){const t=summaryText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('കോപ്പി ചെയ്തു'),()=>{prompt('കോപ്പി ചെയ്യുക',t)});return}
  if(b.id==='newT'){const t=blank();ALL.trips.push(t);pick(t.id);tab='members';editing=null;save();view();$('#trip').focus();return}
  if(b.id==='pdf'){exportPdf();return}
- if(b.id==='reset'){if(confirm('ഈ ട്രിപ്പ് മാത്രം ഡിലീറ്റ് ചെയ്യട്ടേ? തിരിച്ചെടുക്കാൻ പറ്റില്ല.')){ALL.trips=ALL.trips.filter(t=>t!==S);if(!ALL.trips.length)ALL.trips.push(blank());pick(ALL.trips[0].id);tab='members';editing=null;save();view()}return}
+ if(b.id==='menuB'){menuOpen=!menuOpen;menuTrips=false;drawMenu();return}
+ if(b.id==='menuTrips'){menuTrips=true;drawMenu();return}
+ if(b.id==='menuBack'){menuTrips=false;drawMenu();return}
+ if(d.pickt){pick(d.pickt);tab='members';editing=null;menuOpen=false;save();view();drawMenu();return}
+ if(d.delt){const t=ALL.trips.find(x=>x.id===d.delt);if(t&&confirm('"'+tname(t)+'" ട്രിപ്പ് ഡിലീറ്റ് ചെയ്യട്ടേ? തിരിച്ചെടുക്കാൻ പറ്റില്ല.')){ALL.trips=ALL.trips.filter(x=>x!==t);if(!ALL.trips.length)ALL.trips.push(blank());if(S===t){pick(ALL.trips[0].id);tab='members';editing=null}save();view();drawMenu();toast('ട്രിപ്പ് ഡിലീറ്റ് ചെയ്തു')}return}
 });
 $('#trip').addEventListener('input',e=>{S.trip=e.target.value;save();const o=$('#tsel').selectedOptions[0];if(o)o.textContent=tname(S)});
 $('#tsel').addEventListener('change',e=>{pick(e.target.value);editing=null;save();view()});
