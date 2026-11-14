@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Trip Kanakku – ട്രിപ്പ് കണക്ക്</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Malayalam:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef4f4;--card:#fff;--ink:#12303a;--mute:#5d7780;--line:#d5e2e4;--acc:#0e7c86;--accink:#fff;--inc:#23844f;--exp:#c93c3c;--chip:#e1eeef;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0c1a1e;--card:#142529;--ink:#e4f1f2;--mute:#8fabb1;--line:#25393e;--acc:#3cc0cb;--accink:#06262a;--inc:#4cc582;--exp:#ff7d7d;--chip:#1c3338}}
+:root[data-theme="dark"]{--bg:#0c1a1e;--card:#142529;--ink:#e4f1f2;--mute:#8fabb1;--line:#25393e;--acc:#3cc0cb;--accink:#06262a;--inc:#4cc582;--exp:#ff7d7d;--chip:#1c3338}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.55 "Noto Sans Malayalam",system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px 16px 96px}
+input,select,button,textarea{font:inherit;color:inherit}
+.hero{background:var(--acc);color:var(--accink);border-radius:22px;padding:18px 20px;margin-bottom:14px}
+.hero input{background:transparent;border:0;border-bottom:1px dashed currentColor;color:inherit;font-weight:800;font-size:20px;width:100%;padding:2px 0}
+.hero .big{font-size:38px;font-weight:800;line-height:1.2;margin-top:8px}
+.hero .sub{opacity:.85;font-size:14px}
+.stats{display:flex;gap:10px;margin-top:10px;font-size:14px}.stats div{flex:1;background:rgba(255,255,255,.16);border-radius:12px;padding:8px 10px}
+.stats b{display:block;font-size:17px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}
+h2{font-size:18px;margin:4px 0 10px}
+label{display:block;font-size:13px;color:var(--mute);margin:8px 0 3px}
+.f{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.row{display:flex;gap:8px}.row>*{flex:1;min-width:0}
+.btn{border:0;border-radius:12px;padding:11px 16px;background:var(--acc);color:var(--accink);font-weight:600;width:100%;margin-top:12px;cursor:pointer}
+.btn.ghost{background:var(--chip);color:var(--ink)}
+.item{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item .t{flex:1;min-width:0}.item .n{font-size:13px;color:var(--mute);overflow-wrap:anywhere}
+.amt{font-weight:600;white-space:nowrap}.in{color:var(--inc)}.out{color:var(--exp)}
+.x{border:0;background:none;color:var(--mute);font-size:20px;cursor:pointer;padding:0 4px}
+.empty{color:var(--mute);text-align:center;padding:14px 0;font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}.chip{background:var(--chip);border-radius:99px;padding:4px 6px 4px 12px;display:flex;align-items:center;gap:2px}
+.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}th,td{padding:7px 6px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}th:first-child,td:first-child{text-align:left}th{color:var(--mute);font-weight:400}
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px))}
+nav button{flex:1;border:0;background:none;padding:8px 2px;font-size:13px;color:var(--mute);border-radius:10px;cursor:pointer}
+nav button.on{color:var(--acc);font-weight:800;background:var(--chip)}
+.pay{display:flex;justify-content:space-between;gap:8px;padding:9px 0;border-top:1px solid var(--line)}.pay:first-of-type{border-top:0}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 16px;border-radius:99px;font-size:14px}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+ <div class="hero">
+  <input id="trip" aria-label="Trip name" placeholder="ട്രിപ്പിന്റെ പേര്">
+  <div class="sub" style="margin-top:6px">കോമൺ അക്കൗണ്ടിൽ ബാക്കി</div>
+  <div class="big" id="bal"></div>
+  <div class="stats"><div>ഇൻകം<b id="sIn"></b></div><div>ആകെ ചെലവ്<b id="sEx"></b></div><div>ഒരാൾക്ക്<b id="sSh"></b></div></div>
+ </div>
+ <div id="view"></div>
+</main>
+<nav id="nav"></nav>
+<script>
+const KEY='trip-kanakku-v1';
+let S={trip:'',members:[],income:[],exp:[]},tab='members',editing=null;
+try{const r=localStorage.getItem(KEY);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const today=()=>new Date().toISOString().slice(0,10);
+const money=n=>'₹'+(Math.round(n*100)/100).toLocaleString('en-IN',{minimumFractionDigits:0,maximumFractionDigits:2});
+const name=id=>id==='fund'?'കോമൺ അക്കൗണ്ട്':(S.members.find(m=>m.id===id)||{name:'?'}).name;
+const sum=a=>a.reduce((s,x)=>s+x.amt,0);
+const fmtDate=d=>{try{return new Date(d).toLocaleDateString('en-IN',{day:'numeric',month:'short'})}catch(e){return d}};
+const opts=(withFund,sel)=>(withFund?`<option value="fund">കോമൺ അക്കൗണ്ടിൽ നിന്ന്</option>`:'')+S.members.map(m=>`<option value="${m.id}" ${m.id===sel?'selected':''}>${esc(m.name)}</option>`).join('');
+
+function calc(){
+ const n=S.members.length,tin=sum(S.income),tex=sum(S.exp),share=n?tex/n:0;
+ const fundOut=sum(S.exp.filter(e=>e.by==='fund')),bal=tin-fundOut;
+ const rows=S.members.map(m=>{
+  const c=sum(S.income.filter(i=>i.m===m.id)),p=sum(S.exp.filter(e=>e.by===m.id));
+  return{id:m.id,name:m.name,c,p,share,net:c+p-share};
+ });
+ return{n,tin,tex,share,bal,rows};
+}
+function transfers(k){
+ const P=k.rows.map(r=>({id:r.id,v:Math.round(r.net*100)}));
+ P.push({id:'fund',v:-Math.round(k.bal*100)});
+ const d=P.filter(x=>x.v<0).map(x=>({...x})).sort((a,b)=>a.v-b.v),c=P.filter(x=>x.v>0).map(x=>({...x})).sort((a,b)=>b.v-a.v),out=[];
+ let i=0,j=0;
+ while(i<d.length&&j<c.length){
+  const a=Math.min(-d[i].v,c[j].v);
+  if(a>0)out.push({from:d[i].id,to:c[j].id,amt:a/100});
+  d[i].v+=a;c[j].v-=a;
+  if(d[i].v===0)i++;if(c[j].v===0)j++;
+ }
+ return out;
+}
+
+function head(){
+ const k=calc();
+ $('#trip').value=S.trip;
+ $('#bal').textContent=money(k.bal);
+ $('#sIn').textContent=money(k.tin);$('#sEx').textContent=money(k.tex);$('#sSh').textContent=money(k.share);
+}
+function nav(){
+ const T=[['members','കൂട്ടുകാർ'],['income','ഇൻകം'],['exp','ചെലവ്'],['settle','സെറ്റിൽ']];
+ $('#nav').innerHTML=T.map(([k,l])=>`<button class="${tab===k?'on':''}" data-t="${k}">${l}</button>`).join('');
+}
+function view(){
+ head();nav();
+ const v=$('#view');
+ if(tab==='members')v.innerHTML=membersV();
+ else if(S.members.length===0){v.innerHTML=`<div class="card empty">ആദ്യം "കൂട്ടുകാർ" ടാബിൽ ട്രിപ്പിൽ ഉള്ളവരുടെ പേര് ചേർക്കുക.</div>`;}
+ else if(tab==='income')v.innerHTML=incomeV();
+ else if(tab==='exp')v.innerHTML=expV();
+ else v.innerHTML=settleV();
+}
+function membersV(){
+ return `<div class="card"><h2>ട്രിപ്പിൽ ഉള്ളവർ</h2>
+ <div class="row"><input class="f" id="mName" placeholder="പേര്"><button class="btn" id="addM" style="flex:0 0 90px;margin:0">ചേർക്കുക</button></div>
+ <div class="chips" style="margin-top:12px">${S.members.map(m=>`<span class="chip">${esc(m.name)}<button class="x" data-delm="${m.id}" aria-label="Remove ${esc(m.name)}">×</button></span>`).join('')||'<span class="empty">ആരെയും ചേർത്തിട്ടില്ല</span>'}</div></div>
+ <button class="btn ghost" id="reset">പുതിയ ട്രിപ്പ് തുടങ്ങുക (എല്ലാം മായ്ക്കും)</button>`;
+}
+function incomeV(){
+ return `<div class="card"><h2>കോമൺ അക്കൗണ്ടിലേക്ക് കിട്ടിയ പണം</h2>
+ <label>ആരിൽ നിന്ന്</label><select class="f" id="iM">${opts(false)}</select>
+ <div class="row"><div><label>തുക</label><input class="f" id="iA" type="number" inputmode="decimal" min="0" placeholder="0"></div>
+ <div><label>തീയതി</label><input class="f" id="iD" type="date" value="${today()}"></div></div>
+ <label>Note</label><input class="f" id="iN" placeholder="ഉദാ: ആദ്യ ഗഡു">
+ <button class="btn" id="addI">ഇൻകം ചേർക്കുക</button></div>
+ <div class="card"><h2>ഇൻകം ലിസ്റ്റ്</h2>${S.income.length?[...S.income].reverse().map(i=>`<div class="item"><div class="t"><b>${esc(name(i.m))}</b><div class="n">${fmtDate(i.date)}${i.note?' · '+esc(i.note):''}</div></div><div class="amt in">+${money(i.amt)}</div><button class="x" data-deli="${i.id}" aria-label="Delete">×</button></div>`).join(''):'<div class="empty">ഇതുവരെ ഇൻകം ഒന്നുമില്ല</div>'}</div>`;
+}
+function expV(){
+ const e=editing&&S.exp.find(x=>x.id===editing);
+ return `<div class="card"><h2>${e?'ചെലവ് തിരുത്തുക':'പുതിയ ചെലവ്'}</h2>
+ <div class="row"><div><label>തുക</label><input class="f" id="eA" type="number" inputmode="decimal" min="0" placeholder="0" value="${e?e.amt:''}"></div>
+ <div><label>തീയതി</label><input class="f" id="eD" type="date" value="${e?e.date:today()}"></div></div>
+ <label>ആര് കൊടുത്തു</label><select class="f" id="eB">${opts(true,e?e.by:'fund')}</select>
+ <label>Note (എന്തിനായിരുന്നു ചെലവ്)</label><textarea class="f" id="eN" rows="2" placeholder="ഉദാ: ഡിന്നർ, പെട്രോൾ, റൂം വാടക">${e?esc(e.note):''}</textarea>
+ <button class="btn" id="addE">${e?'സേവ് ചെയ്യുക':'ചെലവ് ചേർക്കുക'}</button>${e?'<button class="btn ghost" id="cancelE">റദ്ദാക്കുക</button>':''}</div>
+ <div class="card"><h2>ചെലവുകൾ</h2>${S.exp.length?[...S.exp].reverse().map(x=>`<div class="item"><div class="t"><b>${esc(x.note||'(note ഇല്ല)')}</b><div class="n">${fmtDate(x.date)} · ${x.by==='fund'?'കോമൺ അക്കൗണ്ടിൽ നിന്ന്':esc(name(x.by))+' കൊടുത്തു'}</div></div><div class="amt out">−${money(x.amt)}</div><button class="x" data-edit="${x.id}" aria-label="Edit">✎</button><button class="x" data-dele="${x.id}" aria-label="Delete">×</button></div>`).join(''):'<div class="empty">ഇതുവരെ ചെലവ് ഒന്നുമില്ല</div>'}</div>`;
+}
+function settleV(){
+ const k=calc(),T=transfers(k);
+ const tr=T.length?T.map(t=>`<div class="pay"><span>${esc(name(t.from))} → ${esc(name(t.to))}</span><b>${money(t.amt)}</b></div>`).join(''):'<div class="empty">എല്ലാം തുല്യമാണ്, ആർക്കും ഒന്നും കൊടുക്കാനില്ല 🎉</div>';
+ return `<div class="card"><h2>ആര് ആർക്ക് കൊടുക്കണം</h2>${tr}
+ <button class="btn ghost" id="copy">സംഗ്രഹം കോപ്പി ചെയ്യുക</button><button class="btn" id="pdf">PDF ഡൗൺലോഡ് ചെയ്യുക</button></div>
+ <div class="card"><h2>ഓരോരുത്തരുടെയും കണക്ക്</h2><div class="scroll"><table>
+ <tr><th>പേര്</th><th>ഇട്ടത്</th><th>കൈയിൽ നിന്ന്</th><th>ഷെയർ</th><th>ബാക്കി</th></tr>
+ ${k.rows.map(r=>`<tr><td>${esc(r.name)}</td><td>${money(r.c)}</td><td>${money(r.p)}</td><td>${money(r.share)}</td><td class="${r.net>=0?'in':'out'}">${r.net>=0?'+':'−'}${money(Math.abs(r.net))}</td></tr>`).join('')}</table></div>
+ <p class="n" style="font-size:13px;color:var(--mute)">ബാക്കി + ആണെങ്കിൽ തിരികെ കിട്ടണം, − ആണെങ്കിൽ കൊടുക്കണം. കോമൺ അക്കൗണ്ടിൽ ബാക്കിയുള്ള പണം ഇതിൽ ഉൾപ്പെടുത്തിയിട്ടുണ്ട്.</p></div>`;
+}
+function summaryText(){
+ const k=calc(),T=transfers(k);
+ return `${S.trip||'Trip'}\nആകെ ചെലവ്: ${money(k.tex)} | ഒരാൾക്ക്: ${money(k.share)}\n\n`+(T.length?T.map(t=>`${name(t.from)} → ${name(t.to)}: ${money(t.amt)}`).join('\n'):'എല്ലാം തുല്യം');
+}
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),1800)}
+
+document.addEventListener('click',ev=>{
+ const b=ev.target.closest('button');if(!b)return;
+ const d=b.dataset;
+ if(d.t){tab=d.t;editing=null;view();return}
+ if(b.id==='addM'){const v=$('#mName').value.trim();if(!v)return toast('പേര് നൽകുക');S.members.push({id:uid(),name:v});save();view();return}
+ if(d.delm){const id=d.delm;if(S.income.some(i=>i.m===id)||S.exp.some(e=>e.by===id))return toast('ഇയാളുടെ എൻട്രികൾ ഉള്ളതിനാൽ ഒഴിവാക്കാൻ പറ്റില്ല');S.members=S.members.filter(m=>m.id!==id);save();view();return}
+ if(b.id==='addI'){const a=parseFloat($('#iA').value);if(!(a>0))return toast('തുക നൽകുക');S.income.push({id:uid(),m:$('#iM').value,amt:a,note:$('#iN').value.trim(),date:$('#iD').value||today()});save();view();toast('ഇൻകം ചേർത്തു');return}
+ if(d.deli){S.income=S.income.filter(i=>i.id!==d.deli);save();view();return}
+ if(b.id==='addE'){const a=parseFloat($('#eA').value);if(!(a>0))return toast('തുക നൽകുക');
+  const o={amt:a,by:$('#eB').value,note:$('#eN').value.trim(),date:$('#eD').value||today()};
+  if(editing){Object.assign(S.exp.find(x=>x.id===editing),o);editing=null}else S.exp.push({id:uid(),...o});
+  save();view();toast('ചെലവ് സേവ് ചെയ്തു');return}
+ if(b.id==='cancelE'){editing=null;view();return}
+ if(d.edit){editing=d.edit;view();scrollTo(0,0);return}
+ if(d.dele){S.exp=S.exp.filter(x=>x.id!==d.dele);save();view();return}
+ if(b.id==='copy'){const t=summaryText();(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('കോപ്പി ചെയ്തു'),()=>{prompt('കോപ്പി ചെയ്യുക',t)});return}
+ if(b.id==='pdf'){exportPdf();return}
+ if(b.id==='reset'){if(confirm('എല്ലാ വിവരങ്ങളും മായ്ക്കട്ടെ?')){S={trip:'',members:[],income:[],exp:[]};save();view()}return}
+});
+$('#trip').addEventListener('input',e=>{S.trip=e.target.value;save()});
+let DL=null;
+if(window.claude&&claude.use)claude.use('downloads').then(d=>{DL=d}).catch(()=>{});
+async function nativeSave(blob){
+ const b64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(blob)});
+ const {Filesystem,Share}=Capacitor.Plugins;
+ const f=await Filesystem.writeFile({path:'trip-report-'+Date.now()+'.pdf',data:b64,directory:'CACHE'});
+ await Share.share({title:'Trip report',url:f.uri,dialogTitle:'PDF സേവ് / ഷെയർ ചെയ്യുക'});
+}
+async function exportPdf(){
+ try{if(document.fonts)await document.fonts.load('16px "Noto Sans Malayalam"')}catch(e){}
+ const k=calc(),T=transfers(k),W=1190,H=1684,M=80,F='"Noto Sans Malayalam",system-ui,sans-serif',INK='#12303a';
+ const pages=[];let cv,cx,y;
+ const np=()=>{cv=document.createElement('canvas');cv.width=W;cv.height=H;cx=cv.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,W,H);cx.textBaseline='top';pages.push(cv);y=M};
+ const need=h=>{if(y+h>H-M)np()};
+ const font=(s,b)=>{cx.font=`${b?800:400} ${s}px ${F}`};
+ const text=(t,x,s=26,b=false,al='left',c=INK)=>{font(s,b);cx.fillStyle=c;cx.textAlign=al;cx.fillText(t,x,y)};
+ const para=(t,s=26,b=false,c=INK,maxW=W-2*M)=>{
+  font(s,b);const rows=[];let cur='';
+  for(const w of String(t).split(' ')){const u=cur?cur+' '+w:w;if(cx.measureText(u).width>maxW&&cur){rows.push(cur);cur=w}else cur=u}
+  rows.push(cur);const lh=s*1.6;need(lh*rows.length);
+  rows.forEach(r=>{text(r,M,s,b,'left',c);y+=lh});
+ };
+ const gap=n=>{y+=n};
+ const rule=()=>{need(10);cx.strokeStyle='#d5e2e4';cx.lineWidth=2;cx.beginPath();cx.moveTo(M,y);cx.lineTo(W-M,y);cx.stroke();y+=10};
+ const lr=(l,r,s=26,b=false,c=INK)=>{need(s*1.6);text(l,M,s,b,'left',c);text(r,W-M,s,b,'right',c);y+=s*1.6};
+ np();
+ para(S.trip||'Trip',48,true);
+ para('തയ്യാറാക്കിയത്: '+new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}),22,false,'#5d7780');gap(14);
+ lr('ആകെ ഇൻകം',money(k.tin));lr('ആകെ ചെലവ്',money(k.tex));lr('ഒരാൾക്കുള്ള ഷെയർ',money(k.share));lr('കോമൺ അക്കൗണ്ടിൽ ബാക്കി',money(k.bal),26,true);gap(20);
+ para('ആര് ആർക്ക് കൊടുക്കണം',32,true);rule();
+ if(T.length)T.forEach(t=>lr(name(t.from)+' → '+name(t.to),money(t.amt)));else para('എല്ലാം തുല്യമാണ്');
+ gap(20);para('ഓരോരുത്തരുടെയും കണക്ക്',32,true);rule();
+ const X=[640,820,1000,W-M];
+ const hdr=(a)=>{need(40);text(a[0],M,22,false,'left','#5d7780');a.slice(1).forEach((v,i)=>text(v,X[i],22,false,'right','#5d7780'));y+=40};
+ hdr(['പേര്','ഇട്ടത്','കൈയിൽ നിന്ന്','ഷെയർ','ബാക്കി']);
+ k.rows.forEach(r=>{need(40);text(r.name,M,24);[r.c,r.p,r.share].forEach((v,i)=>text(money(v),X[i],24,false,'right'));text((r.net>=0?'+':'-')+money(Math.abs(r.net)),X[3],24,true,'right',r.net>=0?'#23844f':'#c93c3c');y+=40});
+ gap(20);para('ഇൻകം',32,true);rule();
+ if(!S.income.length)para('ഇൻകം ഒന്നുമില്ല',24,false,'#5d7780');
+ S.income.forEach(i=>{lr(`${fmtDate(i.date)} · ${name(i.m)}`,'+'+money(i.amt),24);if(i.note)para(i.note,20,false,'#5d7780')});
+ gap(20);para('ചെലവുകൾ',32,true);rule();
+ if(!S.exp.length)para('ചെലവ് ഒന്നുമില്ല',24,false,'#5d7780');
+ S.exp.forEach(e=>{lr(`${fmtDate(e.date)} · ${e.note||'(note ഇല്ല)'}`,'-'+money(e.amt),24);para((e.by==='fund'?'കോമൺ അക്കൗണ്ടിൽ നിന്ന്':name(e.by)+' കൊടുത്തു'),20,false,'#5d7780')});
+ // build PDF from page images
+ const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+ const push=u=>{parts.push(u);len+=u.length},str=s=>push(enc.encode(s));
+ const n=pages.length,total=3+3*n;
+ str('%PDF-1.4\n');
+ offs[1]=len;str('1 0 obj\n<</Type/Catalog/Pages 2 0 R>>\nendobj\n');
+ offs[2]=len;str(`2 0 obj\n<</Type/Pages/Count ${n}/Kids [${pages.map((_,i)=>`${3+3*i} 0 R`).join(' ')}]>>\nendobj\n`);
+ pages.forEach((p,i)=>{
+  const pg=3+3*i,ct=pg+1,im=pg+2;
+  const bin=atob(p.toDataURL('image/jpeg',0.88).split(',')[1]),jpg=new Uint8Array(bin.length);
+  for(let j=0;j<bin.length;j++)jpg[j]=bin.charCodeAt(j);
+  offs[pg]=len;str(`${pg} 0 obj\n<</Type/Page/Parent 2 0 R/MediaBox [0 0 595 842]/Resources<</XObject<</Im0 ${im} 0 R>>>>/Contents ${ct} 0 R>>\nendobj\n`);
+  const cs='q 595 0 0 842 0 0 cm /Im0 Do Q';
+  offs[ct]=len;str(`${ct} 0 obj\n<</Length ${cs.length}>>\nstream\n${cs}\nendstream\nendobj\n`);
+  offs[im]=len;str(`${im} 0 obj\n<</Type/XObject/Subtype/Image/Width ${W}/Height ${H}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${jpg.length}>>\nstream\n`);push(jpg);str('\nendstream\nendobj\n');
+ });
+ const xr=len;
+ str(`xref\n0 ${total}\n0000000000 65535 f \n`);
+ for(let i=1;i<total;i++)str(String(offs[i]).padStart(10,'0')+' 00000 n \n');
+ str(`trailer\n<</Size ${total}/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF`);
+ const blob=new Blob(parts,{type:'application/pdf'});
+ const fn=((S.trip||'trip').replace(/[^\w\u0D00-\u0D7F -]/g,'').trim()||'trip')+'.pdf';
+ try{
+  if(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform()){await nativeSave(blob);toast('PDF തയ്യാർ')}
+  else if(DL){await DL.save({filename:fn,data:blob});toast('PDF സേവ് ചെയ്തു')}
+  else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();a.remove();toast('PDF ഡൗൺലോഡ് ആരംഭിച്ചു')}
+ }catch(e){if(!e||e.code!=='declined')toast('PDF സേവ് ചെയ്യാൻ പറ്റിയില്ല')}
+}
+view();
+</script>
+</body>
+</html>
